@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel URL to Image Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f4f4;
+        }
+        #content-wrapper {
+            width: 50%;
+            background: white;
+            padding: 20px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        #excel-content {
+            margin-top: 20px;
+        }
+        .row-div {
+            border-bottom: 1px dashed #ccc;
+            padding: 20px 0;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+        }
+        .text-cell {
+            flex: 1;
+            text-align: left;
+        }
+        .image-cell {
+            flex: 0 0 auto;
+            text-align: right;
+            padding-left: 20px;
+        }
+        img {
+            height: 100px;
+            width: auto;
+            display: block;
+            margin: 10px 0;
+        }
+        .row-number {
+            font-weight: bold;
+            margin-right: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="content-wrapper">
+        <h1 style="text-align: center;">Excel URL to Image Converter</h1>
+        <input type="file" id="file-input" accept=".xlsx">
+        <button id="convert-button">转换</button>
+        <div id="excel-content"></div>
+    </div>
+
+    <!-- Replace Cloudflare CDN with jsDelivr CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+        document.getElementById('convert-button').addEventListener('click', function() {
+            const fileInput = document.getElementById('file-input');
+            if (fileInput.files.length === 0) {
+                alert('请选择一个Excel文件。');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                const contentDiv = document.getElementById('excel-content');
+                contentDiv.innerHTML = '';
+
+                json.forEach((row, index) => {
+                    const rowDiv = document.createElement('div');
+                    rowDiv.className = 'row-div';
+
+                    // Add row number
+                    const rowNumber = document.createElement('div');
+                    rowNumber.className = 'row-number';
+                    rowNumber.textContent = index + 1; // Numbering starts from 1
+                    rowDiv.appendChild(rowNumber);
+
+                    // Remove duplicates from the row
+                    const uniqueRow = [...new Set(row)]; // Use Set to remove duplicates
+
+                    const textDiv = document.createElement('div');
+                    textDiv.className = 'text-cell';
+                    uniqueRow.forEach((cell) => {
+                        const cellDiv = document.createElement('div');
+                        if (typeof cell === 'string' && cell.startsWith('http')) {
+                            // Skip image URLs in the text part
+                        } else {
+                            cellDiv.textContent = cell.replace(/^"(.*)"$/, '$1'); // Remove extra quotes
+                            textDiv.appendChild(cellDiv);
+                        }
+                    });
+                    rowDiv.appendChild(textDiv);
+
+                    // Add image if the cell is a URL
+                    uniqueRow.forEach((cell) => {
+                        if (typeof cell === 'string' && cell.startsWith('http')) {
+                            const imgDiv = document.createElement('div');
+                            imgDiv.className = 'image-cell';
+                            const img = document.createElement('img');
+                            img.src = cell;
+                            imgDiv.appendChild(img);
+                            rowDiv.appendChild(imgDiv);
+                        }
+                    });
+
+                    contentDiv.appendChild(rowDiv);
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    </script>
+</body>
+</html>
