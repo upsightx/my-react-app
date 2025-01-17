@@ -11,10 +11,51 @@
         align-items: center;
         height: 100vh;
         margin: 0;
+        overflow: hidden;
+        position: relative;
+        background-color: #f0f0f0;
+      }
+      .letter{
+        position: absolute;
+        font-size: 20px;
+        color: #333;
+        animation: drop linear;
+        animation-duration: 5s;
+        opacity: 1;
+      }
+      @keyframes drop{
+        0%{
+          top: -50px;
+          opacity: 1;
+        }
+        100%{
+          top: 100vh;
+          opacity: 0;
+        }
       }
     </style>
   </head>
   <body>
     <a href="查询.html" target="_blank">查询页面</a>
+    <script>
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890一丨丶丿乙亅 亠冫冖勹凵丷厶亻忄氵 讠饣纟礻欠又攵殳攵辶儿几力'.split('');
+      const body = document.body;
+
+      function createLetterRain() {
+        const letter = letters[Math.floor(Math.random() * letters.length)];
+        const letterElem = document.createElement('div');
+        letterElem.classList.add('letter');
+        letterElem.textContent = letter;
+        letterElem.style.left = Math.random() * window.innerWidth + 'px';
+        letterElem.style.animationDuration = 2 + Math.random() * 3 + 's'; // 随机动画时长
+        body.appendChild(letterElem);
+
+        letterElem.addEventListener('animationend', () => {
+          body.removeChild(letterElem);
+        });
+      }
+
+      setInterval(createLetterRain, 50); // 每100毫秒生成一个文字
+    </script>
   </body>
 </html>
