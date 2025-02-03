@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        canvas {
+            background: #000;
+            display: block;
+        }
+        #launchBtn {
+            position: fixed;
+            bottom: 5vh;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            font-size: 1.5em;
+            cursor: pointer;
+            background: linear-gradient(45deg, #ff6b6b, #ff8e53);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            box-shadow: 0 5px 25px rgba(255, 107, 107, 0.4);
+            transition: all 0.3s;
+            z-index: 100;
+        }
+        #launchBtn:hover {
+            transform: translateX(-50%) scale(1.1);
+            box-shadow: 0 8px 30px rgba(255, 107, 107, 0.6);
+        }
+        #launchBtn:active {
+            transform: translateX(-50%) scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <button id="launchBtn">🎇 发射烟花</button>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const launchBtn = document.getElementById('launchBtn');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        let fireworks = [];
+        let particles = [];
+        let trails = [];
+        let isLaunching = false;
+
+        class Firework {
+            constructor() {
+                this.x = canvas.width/2;
+                this.y = canvas.height;
+                // 动态爆炸高度：窗口高度的10%-30%（即三分之二以上的位置）
+                this.targetY = canvas.height * (0.1 + Math.random()*0.2);
+                // 速度与目标高度正相关（飞得越高需要更大初速度）
+                this.speed = 15 + (this.targetY/canvas.height)*20;
+                this.color = `hsl(${Math.random()*360}, 100%, 70%)`;
+                this.exploded = false;
+                this.safetyTimer = 0;
+                // 爆炸半径与目标高度负相关（越高爆炸范围越大）
+                this.explosionRadius = 50 + (1 - this.targetY/canvas.height)*80;
+            }
+
+            update() {
+                this.safetyTimer++;
+                const prevY = this.y;
+                this.y -= this.speed;
+                // 动态摩擦力：接近目标时减速更快
+                this.speed *= 0.94 + (this.y/canvas.height)*0.04;
+
+                trails.push(new Trail(
+                    this.x,
+                    this.y,
+                    this.color,
+                    this.speed
+                ));
+
+                // 智能爆炸检测
+                const shouldExplode = 
+                    (prevY > this.targetY && this.y <= this.targetY) || // 穿过目标高度
+                    this.speed < 1.5 ||                                 // 速度过低
+                    this.safetyTimer > 150;                            // 安全超时
+
+                if (shouldExplode && !this.exploded) {
+                    this.explode();
+                    this.exploded = true;
+                }
+            }
+
+            explode() {
+                // 粒子数量与爆炸半径正相关
+                const particleCount = 150 + this.explosionRadius*2;
+                for(let i=0; i<particleCount; i++) {
+                    particles.push(new Particle(
+                        this.x,
+                        this.y,
+                        this.color,
+                        this.explosionRadius * (0.7 + Math.random()*0.6)
+                    ));
+                }
+
+                // 随机触发多层爆炸（30%概率）
+                if(Math.random() > 0.7) {
+                    const bursts = 2 + Math.floor(Math.random()*3);
+                    for(let b=0; b<bursts; b++) {
+                        setTimeout(() => {
+                            for(let i=0; i<30; i++) {
+                                particles.push(new Particle(
+                                    this.x,
+                                    this.y,
+                                    `hsl(${Math.random()*360}, 100%, 70%)`,
+                                    this.explosionRadius * 0.8
+                                ));
+                            }
+                        }, 50 + b*80); // 分层延迟爆炸
+                    }
+                }
+            }
+        }
+
+        class Trail {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.alpha = 0.8;
+                this.size = Math.random() * 2 + 2;
+                this.gravity = 0.2;
+            }
+
+            update() {
+                this.alpha -= 0.03;
+                this.y += this.gravity;
+                this.size *= 0.95;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, baseColor, radius) {
+                const angle = Math.random() * Math.PI * 2;
+                const spread = radius * (0.8 + Math.random()*0.4);
+                
+                this.x = x + Math.cos(angle) * spread;
+                this.y = y + Math.sin(angle) * spread;
+                this.color = `hsla(${Math.random()*360}, 100%, 70%, 0.9)`;
+                this.angle = angle;
+                this.speed = (radius/35) * (Math.random()*6 + 4);
+                this.friction = 0.93;
+                this.gravity = 0.25 + Math.random()*0.1; // 随机重力
+                this.alpha = 1;
+                this.size = Math.random()*3 + 2;
+            }
+
+            update() {
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed + this.gravity;
+                this.speed *= this.friction;
+                this.gravity *= 1.005;  // 动态重力增强
+                this.alpha -= 0.003;
+                this.size *= 0.985;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.min(this.alpha, 0.85);
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            [fireworks, trails, particles].forEach(arr => {
+                for(let i = arr.length - 1; i >= 0; i--) {
+                    if(arr[i].update) arr[i].update();
+                    if(arr[i].draw) arr[i].draw();
+                    
+                    if(arr[i].alpha <= 0 || 
+                      (arr[i] instanceof Firework && arr[i].exploded)) {
+                        arr.splice(i, 1);
+                    }
+                }
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        function safeLaunch() {
+            if(isLaunching) return;
+            isLaunching = true;
+            
+            requestAnimationFrame(() => {
+                fireworks.push(new Firework());
+                isLaunching = false;
+            });
+        }
+
+        launchBtn.addEventListener('click', safeLaunch);
+        launchBtn.addEventListener('touchend', safeLaunch);
+
+        animate();
+    </script>
+</body>
+</html>
